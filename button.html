@@ -28,8 +28,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            flex-direction: column;
             position: relative;
+            overflow: hidden;
         }
         #movingButton {
             padding: 10px 20px;
@@ -50,15 +50,16 @@
         <a href="#">Contact</a>
     </div>
     <div class="content">
-        <button id="movingButton">...</button>
+        <button id="movingButton">Cliquez-moi</button>
     </div>
 
     <script>
         const button = document.getElementById('movingButton');
+        const content = document.querySelector('.content');
 
         button.addEventListener('mouseover', () => {
-            const x = Math.random() * (window.innerWidth - button.offsetWidth);
-            const y = Math.random() * (window.innerHeight - button.offsetHeight);
+            const x = Math.random() * (content.clientWidth - button.offsetWidth);
+            const y = Math.random() * (content.clientHeight - button.offsetHeight);
 
             button.style.left = `${x}px`;
             button.style.top = `${y}px`;
