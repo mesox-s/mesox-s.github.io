@@ -12,7 +12,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            overflow: hidden; /* Empêche le défilement si le bouton bouge */
+            position: relative;
+            overflow: hidden; /* Empêche le bouton de dépasser les limites de la page */
         }
         .toolbar {
             background-color: #333;
@@ -29,9 +30,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            position: relative; /* Nécessaire pour positionner les confettis */
+            flex-direction: column;
+            position: relative; /* Nécessaire pour positionner les boutons */
         }
-        #movingButton {
+        .moving-button {
             padding: 10px 20px;
             font-size: 16px;
             background-color: #007BFF;
@@ -39,29 +41,10 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            position: absolute; /* Permet au bouton de bouger librement */
+            position: absolute; /* Permet de déplacer le bouton librement */
         }
-        #movingButton.gray {
-            background-color: gray; /* Couleur grise lorsque Shift est appuyé */
-        }
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: red; /* Couleur par défaut des confettis */
-            border-radius: 50%;
-            animation-name: fall; /* Animation pour faire tomber les confettis */
-            animation-timing-function: ease-out;
-        }
-        @keyframes fall {
-            0% {
-                transform: translateY(0);
-                opacity: 1; /* Confettis visibles au début */
-            }
-            100% {
-                transform: translateY(500px); /* Les confettis tombent vers le bas */
-                opacity: 0; /* Confettis disparaissent en bas */
-            }
+        .moving-button.gray {
+            background-color: gray; /* Couleur grise quand Shift est enfoncé */
         }
     </style>
 </head>
@@ -71,76 +54,66 @@
         <a href="#">À propos</a>
         <a href="#">Contact</a>
     </div>
-    <div class="content">
-        <!-- Bouton ajouté -->
-        <button id="movingButton">Bouton farceur</button>
+    <div class="content" id="content">
+        <!-- Le premier bouton sera ajouté ici -->
     </div>
 
     <script>
-        const button = document.getElementById('movingButton');
-        let isShiftPressed = false;
+        const content = document.getElementById('content');
 
-        // Déplace le bouton lorsqu'on passe la souris dessus
-        button.addEventListener('mouseover', () => {
-            if (!isShiftPressed) { // Ne bouge pas si Shift est appuyé
-                const x = Math.random() * (window.innerWidth - button.offsetWidth);
-                const y = Math.random() * (window.innerHeight - button.offsetHeight - document.querySelector('.toolbar').offsetHeight);
-                button.style.left = `${x}px`;
-                button.style.top = `${y}px`;
-            }
-        });
+        // Fonction pour créer un bouton
+        function createMovingButton() {
+            const button = document.createElement('button');
+            button.classList.add('moving-button');
+            button.textContent = 'Cliquez-moi !';
+            
+            // Position initiale aléatoire
+            const x = Math.random() * (window.innerWidth - 100); // Largeur du bouton prise en compte
+            const y = Math.random() * (window.innerHeight - 50); // Hauteur du bouton prise en compte
+            button.style.left = `${x}px`;
+            button.style.top = `${y}px`;
 
-        // Change l'état du bouton lorsque Shift est pressé ou relâché
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Shift') {
-                isShiftPressed = true;
-                button.classList.add('gray'); // Ajoute la classe grise
-                button.style.cursor = 'pointer'; // Permet de cliquer sur le bouton
-            }
-        });
+            // État pour savoir si le bouton peut bouger
+            let canMove = true;
 
-        document.addEventListener('keyup', (event) => {
-            if (event.key === 'Shift') {
-                isShiftPressed = false;
-                button.classList.remove('gray'); // Retire la classe grise
-                button.style.cursor = 'default';
-            }
-        });
-
-        // Génère des confettis lorsqu'on clique sur le bouton
-        button.addEventListener('click', () => {
-            if (isShiftPressed) { // Les confettis ne sont générés que si Shift est appuyé
-                for (let i = 0; i < 50; i++) { // Génère 50 confettis
-                    createConfetti();
+            // Déplacer le bouton au survol si Shift n'est pas enfoncé
+            button.addEventListener('mouseover', () => {
+                if (canMove) {
+                    const newX = Math.random() * (window.innerWidth - button.offsetWidth);
+                    const newY = Math.random() * (window.innerHeight - button.offsetHeight);
+                    button.style.left = `${newX}px`;
+                    button.style.top = `${newY}px`;
                 }
-            }
-        });
+            });
 
-        function createConfetti() {
-            const confetti = document.createElement('div');
-            confetti.classList.add('confetti');
+            // Gérer l'appui sur Shift
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Shift') {
+                    canMove = false; // Désactiver le mouvement
+                    button.classList.add('gray'); // Changer la couleur en gris
+                }
+            });
 
-            // Position initiale aléatoire autour du bouton
-            const xOffset = Math.random() * button.offsetWidth - button.offsetWidth / 2;
-            const yOffset = Math.random() * button.offsetHeight - button.offsetHeight / 2;
+            // Gérer le relâchement de Shift
+            document.addEventListener('keyup', (event) => {
+                if (event.key === 'Shift') {
+                    canMove = true; // Réactiver le mouvement
+                    button.classList.remove('gray'); // Restaurer la couleur d'origine
+                }
+            });
 
-            confetti.style.left = `${button.offsetLeft + xOffset}px`;
-            confetti.style.top = `${button.offsetTop + yOffset}px`;
+            // Ajouter un nouveau bouton au clic lorsque Shift est enfoncé
+            button.addEventListener('click', () => {
+                if (!canMove) { // Si le bouton est immobile (Shift enfoncé)
+                    createMovingButton(); // Créer un nouveau bouton
+                }
+            });
 
-            // Couleur aléatoire pour chaque confetti
-            confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-
-            // Durée d'animation aléatoire pour un effet réaliste
-            const duration = Math.random() * 2 + 1; // Entre 1 et 3 secondes
-            confetti.style.animationDuration = `${duration}s`;
-
-            document.body.appendChild(confetti);
-
-            // Supprime les confettis après l'animation
-            setTimeout(() => {
-                confetti.remove();
-            }, duration * 1000);
+            content.appendChild(button);
         }
+
+        // Créer le premier bouton au chargement de la page
+        createMovingButton();
     </script>
 </body>
 </html>
