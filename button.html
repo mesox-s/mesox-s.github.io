@@ -13,7 +13,7 @@
             flex-direction: column;
             min-height: 100vh;
             position: relative;
-            overflow: hidden; /* Empêche le bouton de dépasser les limites de la page */
+            overflow: hidden;
         }
         .toolbar {
             background-color: #333;
@@ -31,7 +31,7 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            position: relative; /* Nécessaire pour positionner les boutons */
+            position: relative;
         }
         .moving-button {
             padding: 10px 20px;
@@ -41,10 +41,10 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            position: absolute; /* Permet de déplacer le bouton librement */
+            position: absolute;
         }
         .moving-button.gray {
-            background-color: gray; /* Couleur grise quand Shift est enfoncé */
+            background-color: gray;
         }
     </style>
 </head>
@@ -55,28 +55,23 @@
         <a href="#">Contact</a>
     </div>
     <div class="content" id="content">
-        <!-- Le premier bouton sera ajouté ici -->
     </div>
 
     <script>
         const content = document.getElementById('content');
 
-        // Fonction pour créer un bouton
         function createMovingButton() {
             const button = document.createElement('button');
             button.classList.add('moving-button');
             button.textContent = 'Cliquez-moi !';
-            
-            // Position initiale aléatoire
-            const x = Math.random() * (window.innerWidth - 100); // Largeur du bouton prise en compte
-            const y = Math.random() * (window.innerHeight - 50); // Hauteur du bouton prise en compte
+        
+            const x = Math.random() * (window.innerWidth - 100);
+            const y = Math.random() * (window.innerHeight - 50);
             button.style.left = `${x}px`;
             button.style.top = `${y}px`;
 
-            // État pour savoir si le bouton peut bouger
             let canMove = true;
 
-            // Déplacer le bouton au survol si Shift n'est pas enfoncé
             button.addEventListener('mouseover', () => {
                 if (canMove) {
                     const newX = Math.random() * (window.innerWidth - button.offsetWidth);
@@ -86,33 +81,29 @@
                 }
             });
 
-            // Gérer l'appui sur Shift
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Shift') {
-                    canMove = false; // Désactiver le mouvement
-                    button.classList.add('gray'); // Changer la couleur en gris
+                    canMove = false;
+                    button.classList.add('gray');
                 }
             });
 
-            // Gérer le relâchement de Shift
             document.addEventListener('keyup', (event) => {
                 if (event.key === 'Shift') {
-                    canMove = true; // Réactiver le mouvement
-                    button.classList.remove('gray'); // Restaurer la couleur d'origine
+                    canMove = true;
+                    button.classList.remove('gray');
                 }
             });
 
-            // Ajouter un nouveau bouton au clic lorsque Shift est enfoncé
             button.addEventListener('click', () => {
-                if (!canMove) { // Si le bouton est immobile (Shift enfoncé)
-                    createMovingButton(); // Créer un nouveau bouton
+                if (!canMove) {
+                    createMovingButton();
                 }
             });
 
             content.appendChild(button);
         }
 
-        // Créer le premier bouton au chargement de la page
         createMovingButton();
     </script>
 </body>
