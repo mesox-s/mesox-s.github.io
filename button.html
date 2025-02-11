@@ -19,11 +19,22 @@
             background-color: #333;
             color: white;
             padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .toolbar a {
             color: white;
             text-decoration: none;
             margin-right: 15px;
+        }
+        .toolbar .reset-button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
         }
         .content {
             flex-grow: 1;
@@ -50,9 +61,12 @@
 </head>
 <body>
     <div class="toolbar">
-        <a href="index.html">Accueil</a>
-        <a href="#">À propos</a>
-        <a href="#">Contact</a>
+        <div>
+            <a href="index.html">Accueil</a>
+            <a href="#">À propos</a>
+            <a href="#">Contact</a>
+        </div>
+        <button class="reset-button" onclick="location.reload()">Réinitialiser</button>
     </div>
     <div class="content" id="content">
     </div>
@@ -65,8 +79,9 @@
             button.classList.add('moving-button');
             button.textContent = 'Cliquez-moi !';
         
-            const x = Math.random() * (window.innerWidth - 100);
-            const y = Math.random() * (window.innerHeight - 50);
+            // Positionnement initial : au centre mais légèrement plus haut
+            const x = (window.innerWidth / 2) - 50; // Centré horizontalement
+            const y = (window.innerHeight / 2) - 100; // Légèrement plus haut que le centre
             button.style.left = `${x}px`;
             button.style.top = `${y}px`;
 
