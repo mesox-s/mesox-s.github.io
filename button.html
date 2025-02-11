@@ -74,14 +74,15 @@
     <script>
         const content = document.getElementById('content');
 
-        function createMovingButton() {
+        function createMovingButton(x = null, y = null) {
             const button = document.createElement('button');
             button.classList.add('moving-button');
             button.textContent = 'Cliquez-moi !';
-        
-            // Positionnement initial : au centre mais légèrement plus haut
-            const x = (window.innerWidth / 2) - 50; // Centré horizontalement
-            const y = (window.innerHeight / 2) - 100; // Légèrement plus haut que le centre
+
+            if (x === null || y === null) {
+                x = (window.innerWidth / 2) - 50;
+                y = (window.innerHeight / 2) - 100; 
+            }
             button.style.left = `${x}px`;
             button.style.top = `${y}px`;
 
@@ -91,6 +92,7 @@
                 if (canMove) {
                     const newX = Math.random() * (window.innerWidth - button.offsetWidth);
                     const newY = Math.random() * (window.innerHeight - button.offsetHeight);
+
                     button.style.left = `${newX}px`;
                     button.style.top = `${newY}px`;
                 }
@@ -105,14 +107,15 @@
 
             document.addEventListener('keyup', (event) => {
                 if (event.key === 'Shift') {
-                    canMove = true;
+                    canMove = tr
                     button.classList.remove('gray');
                 }
             });
 
             button.addEventListener('click', () => {
                 if (!canMove) {
-                    createMovingButton();
+                    const rect = button.getBoundingClientRect();
+                    createMovingButton(rect.left, rect.top);
                 }
             });
 
