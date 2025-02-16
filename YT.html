@@ -28,9 +28,8 @@
             flex-grow: 1;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;
             padding: 20px;
-            overflow-y: auto;
         }
         .video-container {
             max-width: 800px;
@@ -72,48 +71,6 @@
         </div>
     </div>
 
-    <script>
-        function formatDate(isoString) {
-            const date = new Date(isoString);
-            return date.toLocaleString('fr-FR', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric', 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            });
-        }
-
-        function fetchLatestVideo() {
-            const apiKey = 'AIzaSyDf7a3zpBjqWa2IvBjMFufDhSAc5xOCjVQ';
-            const channelId = 'UCgvqvBoSHB1ctlyyhoHrGwQ'; // ID de la chaîne Amixem
-            const apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${apiKey}&channelId=${channelId}&part=snippet,id&order=date&maxResults=50&type=video`;
-
-            fetch(apiUrl)
-                .then(response => response.json())
-                .then(data => {
-                    const regularVideos = data.items.filter(item => 
-                        item.id.kind === "youtube#video" && !item.snippet.title.toLowerCase().includes("#shorts")
-                    );
-
-                    if (regularVideos.length > 0) {
-                        const video = regularVideos[0];
-                        const videoContainer = document.getElementById('videoContainer');
-                        videoContainer.innerHTML = `
-                            <img class="thumbnail" src="${video.snippet.thumbnails.high.url}" alt="Miniature de la vidéo">
-                            <div class="video-info">
-                                <div class="video-title">${video.snippet.title}</div>
-                                <div class="video-meta">Publié le ${formatDate(video.snippet.publishedAt)}</div>
-                            </div>
-                        `;
-                    } else {
-                        console.log("Aucune vidéo régulière trouvée");
-                    }
-                })
-                .catch(error => console.error('Erreur:', error));
-        }
-
-        fetchLatestVideo();
-    </script>
+    <script src="js/main.js"></script>
 </body>
 </html>
