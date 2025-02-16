@@ -70,7 +70,6 @@
         </div>
 
         <script>
-            // Fonction pour formater la date
             function formatDate(isoString) {
                 const date = new Date(isoString);
                 return date.toLocaleString('fr-FR', { 
@@ -82,31 +81,36 @@
                 });
             }
 
-            // Fonction pour récupérer et afficher la dernière vidéo
             function fetchLatestVideo() {
                 const apiKey = 'AIzaSyDf7a3zpBjqWa2IvBjMFufDhSAc5xOCjVQ';
                 const channelId = 'UCgvqvBoSHB1ctlyyhoHrGwQ'; // ID de la chaîne Amixem
-                const apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${apiKey}&channelId=${channelId}&part=snippet,id&order=date&maxResults=1`;
+                const apiUrl = `https://www.googleapis.com/youtube/v3/search?key=${apiKey}&channelId=${channelId}&part=snippet,id&order=date&maxResults=50&type=video`;
 
                 fetch(apiUrl)
                     .then(response => response.json())
                     .then(data => {
-                        const video = data.items[0];
-                        const videoInfo = document.getElementById('videoInfo');
-                        videoInfo.innerHTML = `
-                            <img class="thumbnail" src="${video.snippet.thumbnails.high.url}" alt="Miniature de la vidéo">
-                            <div class="video-title">${video.snippet.title}</div>
-                            <div class="video-date">Publié le ${formatDate(video.snippet.publishedAt)}</div>
-                        `;
+                        // Filtrer pour exclure les Shorts
+                        const regularVideos = data.items.filter(item => {
+                            return item.id.kind === "youtube#video" && !item.snippet.title.toLowerCase().includes("#shorts");
+                        });
+
+                        if (regularVideos.length > 0) {
+                            const video = regularVideos[0]; // La vidéo la plus récente qui n'est pas un Short
+                            const videoInfo = document.getElementById('videoInfo');
+                            videoInfo.innerHTML = `
+                                <img class="thumbnail" src="${video.snippet.thumbnails.high.url}" alt="Miniature de la vidéo">
+                                <div class="video-title">${video.snippet.title}</div>
+                                <div class="video-date">Publié le ${formatDate(video.snippet.publishedAt)}</div>
+                            `;
+                        } else {
+                            console.log("Aucune vidéo régulière trouvée");
+                        }
                     })
                     .catch(error => console.error('Erreur:', error));
             }
 
-            // Appeler la fonction au chargement de la page
             fetchLatestVideo();
-
-            // Mettre à jour toutes les 5 minutes (300000 ms)
-            setInterval(fetchLatestVideo, 300000);
+            setInterval(fetchLatestVideo, 300000); // Mise à jour toutes les 5 minutes
         </script>
     </body>
 </html>
