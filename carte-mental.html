@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Carte Mentale Interactive</title>
     <style>
         body {
@@ -19,6 +19,7 @@
             width: 100%;
             position: absolute;
             top: 0;
+            z-index: 20;
         }
         .toolbar a {
             color: white;
@@ -38,6 +39,7 @@
             border: 1px solid #ddd;
             margin: 20px;
             min-height: 80vh;
+            overflow: hidden;
         }
         .node {
             position: absolute;
@@ -46,15 +48,32 @@
             cursor: move;
             min-width: 100px;
             text-align: center;
+            user-select: none;
+            color: white;
+            background-color: #007bff;
+            box-sizing: border-box;
+        }
+        .node.selected {
+            box-shadow: 0 0 0 3px #ffcc00;
+        }
+        .node input.edit-input {
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1em;
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            outline: none;
         }
         .controls {
-            width: 200px;
+            width: 220px;
             padding: 20px;
             background-color: #f0f0f0;
             border-left: 1px solid #ddd;
             display: flex;
             flex-direction: column;
             gap: 15px;
+            z-index: 10;
         }
         .btn {
             padding: 10px 20px;
@@ -65,6 +84,7 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s;
+            user-select: none;
         }
         .btn:hover {
             background-color: #0056b3;
@@ -75,6 +95,26 @@
             background-color: #333;
             transform-origin: left center;
             pointer-events: none;
+            z-index: 5;
+        }
+        #style-options {
+            display: none;
+            margin-top: 15px;
+        }
+        #style-options label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #style-options select,
+        #style-options input[type="color"] {
+            width: 100%;
+            padding: 5px;
+            font-size: 1em;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -84,213 +124,285 @@
         <a href="#">Projets</a>
         <a href="#">Aide</a>
     </div>
-    
+
     <div class="content">
         <div id="mind-map"></div>
-        
+
         <div class="controls">
             <button class="btn" id="add-element">Ajouter Élément</button>
             <button class="btn" id="connect">Connecter</button>
             <button class="btn" id="disconnect">Déconnecter</button>
+            <button class="btn" id="edit-text">Modifier Texte</button>
             <button class="btn" id="customize">Personnaliser</button>
-            
-            <div id="style-options" style="display:none; margin-top:15px;">
-                <label for="shape">Forme:</label>
+
+            <div id="style-options">
+                <label for="shape">Forme :</label>
                 <select id="shape" class="btn">
                     <option value="rectangle">Rectangle</option>
                     <option value="circle">Cercle</option>
                     <option value="rounded">Arrondi</option>
                 </select>
-                
-                <label for="color" style="margin-top:10px;">Couleur:</label>
-                <input type="color" id="color" value="#007bff" class="btn">
+
+                <label for="color" style="margin-top: 10px;">Couleur :</label>
+                <input type="color" id="color" value="#007bff" class="btn" />
             </div>
         </div>
     </div>
 
     <script>
-        // Variables globales
         let selectedNode = null;
         let connectionSource = null;
         let nodeCount = 0;
         let connections = [];
-        
-        // Initialisation
+        let editMode = false;
+
         document.addEventListener('DOMContentLoaded', () => {
-            // Créer le noeud central
             createCentralNode();
-            
-            // Gestion des boutons
+
             document.getElementById('add-element').addEventListener('click', addNode);
             document.getElementById('connect').addEventListener('click', startConnection);
             document.getElementById('disconnect').addEventListener('click', removeConnections);
+            document.getElementById('edit-text').addEventListener('click', toggleEditMode);
             document.getElementById('customize').addEventListener('click', toggleStyleOptions);
-            
-            // Style dynamique
+
             document.getElementById('shape').addEventListener('change', applyStyles);
             document.getElementById('color').addEventListener('input', applyStyles);
         });
-        
+
         function createCentralNode() {
             const mindMap = document.getElementById('mind-map');
-            const centerX = mindMap.offsetWidth / 2 - 50;
-            const centerY = mindMap.offsetHeight / 2 - 25;
-            
+            const centerX = mindMap.clientWidth / 2 - 50;
+            const centerY = mindMap.clientHeight / 2 - 25;
+
+            const node = createNode('Idée Centrale', centerX, centerY);
+            selectNode(node);
+        }
+
+        function createNode(text, x, y) {
+            const mindMap = document.getElementById('mind-map');
             const node = document.createElement('div');
             node.className = 'node';
-            node.id = 'node-0';
-            node.textContent = 'Idée Centrale';
-            node.style.left = `${centerX}px`;
-            node.style.top = `${centerY}px`;
-            node.style.backgroundColor = '#007bff';
-            node.style.color = 'white';
-            
+            node.id = `node-${nodeCount++}`;
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+
+            // Contenu texte
+            const content = document.createElement('div');
+            content.className = 'node-content';
+            content.textContent = text;
+            node.appendChild(content);
+
+            // Input texte caché pour édition
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'edit-input';
+            input.style.display = 'none';
+            input.value = text;
+            node.appendChild(input);
+
+            // Événements
             makeDraggable(node);
+
+            // Sélection du noeud au clic
+            node.addEventListener('click', (e) => {
+                if (editMode) return; // Ignore quand on édite
+                e.stopPropagation();
+                selectNode(node);
+            });
+
+            // Gestion édition texte
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    finishEditing(node);
+                } else if (e.key === 'Escape') {
+                    cancelEditing(node);
+                }
+            });
+            input.addEventListener('blur', () => {
+                finishEditing(node);
+            });
+
             mindMap.appendChild(node);
+            return node;
         }
-        
+
         function addNode() {
             const mindMap = document.getElementById('mind-map');
-            nodeCount++;
-            
-            const node = document.createElement('div');
-            node.className = 'node';
-            node.id = `node-${nodeCount}`;
-            node.textContent = `Élément ${nodeCount}`;
-            node.style.backgroundColor = '#007bff';
-            node.style.color = 'white';
-            
-            // Position aléatoire près du centre
-            const centerX = mindMap.offsetWidth / 2 + (Math.random() * 100 - 50);
-            const centerY = mindMap.offsetHeight / 2 + (Math.random() * 100 - 50);
-            
-            node.style.left = `${centerX}px`;
-            node.style.top = `${centerY}px`;
-            
-            makeDraggable(node);
-            mindMap.appendChild(node);
+            const x = mindMap.clientWidth / 2 + (Math.random() * 100 - 50);
+            const y = mindMap.clientHeight / 2 + (Math.random() * 100 - 50);
+            const node = createNode(`Élément ${nodeCount}`, x, y);
+            selectNode(node);
         }
-        
+
         function makeDraggable(node) {
             let isDragging = false;
             let offsetX, offsetY;
-            
+
             node.addEventListener('mousedown', (e) => {
-                if (e.target === node) {
-                    isDragging = true;
-                    offsetX = e.clientX - node.getBoundingClientRect().left;
-                    offsetY = e.clientY - node.getBoundingClientRect().top;
-                    selectedNode = node;
-                    
-                    // Mise en avant-plan
-                    document.querySelectorAll('.node').forEach(n => {
-                        n.style.zIndex = 0;
-                    });
-                    node.style.zIndex = 10;
-                }
+                if (editMode) return; // Pas de drag en mode édition
+                if (e.target.classList.contains('edit-input')) return;
+                isDragging = true;
+                offsetX = e.clientX - node.getBoundingClientRect().left;
+                offsetY = e.clientY - node.getBoundingClientRect().top;
+                selectNode(node);
+
+                // Mettre au premier plan
+                document.querySelectorAll('.node').forEach(n => (n.style.zIndex = 0));
+                node.style.zIndex = 10;
+
+                e.preventDefault();
             });
-            
+
             document.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
-                
+
                 const mindMap = document.getElementById('mind-map');
                 const rect = mindMap.getBoundingClientRect();
-                
+
                 let x = e.clientX - rect.left - offsetX;
                 let y = e.clientY - rect.top - offsetY;
-                
-                // Limites de la carte mentale
+
+                // Limites
                 x = Math.max(0, Math.min(x, rect.width - node.offsetWidth));
                 y = Math.max(0, Math.min(y, rect.height - node.offsetHeight));
-                
+
                 node.style.left = `${x}px`;
                 node.style.top = `${y}px`;
-                
+
                 updateConnections();
             });
-            
+
             document.addEventListener('mouseup', () => {
                 isDragging = false;
             });
         }
-        
+
+        function selectNode(node) {
+            if (selectedNode) {
+                selectedNode.classList.remove('selected');
+                if (editMode) {
+                    cancelEditing(selectedNode);
+                }
+            }
+            selectedNode = node;
+            if (selectedNode) selectedNode.classList.add('selected');
+
+            // Met à jour les contrôles style avec les valeurs du noeud sélectionné
+            if (selectedNode) {
+                const bg = window.getComputedStyle(selectedNode).backgroundColor;
+                document.getElementById('color').value = rgbToHex(bg);
+                const radius = selectedNode.style.borderRadius || '5px';
+                if (radius === '50%') {
+                    document.getElementById('shape').value = 'circle';
+                } else if (radius === '20px') {
+                    document.getElementById('shape').value = 'rounded';
+                } else {
+                    document.getElementById('shape').value = 'rectangle';
+                }
+            }
+        }
+
+        function rgbToHex(rgb) {
+            const result = rgb.match(/\d+/g);
+            if (!result) return '#007bff';
+            return (
+                '#' +
+                result
+                    .slice(0, 3)
+                    .map(x => {
+                        const hex = parseInt(x).toString(16);
+                        return hex.length === 1 ? '0' + hex : hex;
+                    })
+                    .join('')
+            );
+        }
+
         function startConnection() {
             if (!selectedNode) {
-                alert('Sélectionnez d\'abord un élément');
+                alert("Sélectionnez d'abord un élément");
                 return;
             }
-            
             connectionSource = selectedNode;
-            alert(`Sélectionnez maintenant l'élément à connecter avec ${connectionSource.textContent}`);
-            
+            alert(`Sélectionnez maintenant l'élément à connecter avec "${connectionSource.querySelector('.node-content').textContent}"`);
+
             const nodes = document.querySelectorAll('.node');
             nodes.forEach(node => {
                 node.addEventListener('click', handleConnectionTarget);
             });
         }
-        
+
         function handleConnectionTarget(e) {
             if (!connectionSource) return;
-            
+
             const target = e.currentTarget;
             if (target === connectionSource) {
-                alert('Vous ne pouvez pas connecter un élément à lui-même');
+                alert("Vous ne pouvez pas connecter un élément à lui-même");
                 return;
             }
-            
+
             createConnection(connectionSource, target);
-            
-            // Nettoyer les écouteurs
+
             const nodes = document.querySelectorAll('.node');
             nodes.forEach(node => {
                 node.removeEventListener('click', handleConnectionTarget);
             });
-            
+
             connectionSource = null;
         }
-        
+
         function createConnection(source, target) {
+            // Vérifier si connexion existe déjà (dans un sens ou l'autre)
+            if (
+                connections.some(
+                    c =>
+                        (c.source === source && c.target === target) ||
+                        (c.source === target && c.target === source)
+                )
+            ) {
+                alert('Connexion déjà existante');
+                return;
+            }
+
             const line = document.createElement('div');
             line.className = 'connection-line';
-            
+
             document.getElementById('mind-map').appendChild(line);
             connections.push({ source, target, line });
-            
+
             updateConnection(line, source, target);
         }
-        
+
         function updateConnections() {
             connections.forEach(({ source, target, line }) => {
                 updateConnection(line, source, target);
             });
         }
-        
+
         function updateConnection(line, source, target) {
+            const mindMapRect = document.getElementById('mind-map').getBoundingClientRect();
             const sourceRect = source.getBoundingClientRect();
             const targetRect = target.getBoundingClientRect();
-            const mindMapRect = document.getElementById('mind-map').getBoundingClientRect();
-            
-            const sourceX = sourceRect.left + sourceRect.width/2 - mindMapRect.left;
-            const sourceY = sourceRect.top + sourceRect.height/2 - mindMapRect.top;
-            
-            const targetX = targetRect.left + targetRect.width/2 - mindMapRect.left;
-            const targetY = targetRect.top + targetRect.height/2 - mindMapRect.top;
-            
-            const length = Math.sqrt(Math.pow(targetX - sourceX, 2) + Math.pow(targetY - sourceY, 2));
-            const angle = Math.atan2(targetY - sourceY, targetX - sourceX) * 180 / Math.PI;
-            
-            line.style.width = `${length}px`;
-            line.style.left = `${sourceX}px`;
-            line.style.top = `${sourceY}px`;
+
+            const sourceX = sourceRect.left + sourceRect.width / 2 - mindMapRect.left;
+            const sourceY = sourceRect.top + sourceRect.height / 2 - mindMapRect.top;
+            const targetX = targetRect.left + targetRect.width / 2 - mindMapRect.left;
+            const targetY = targetRect.top + targetRect.height / 2 - mindMapRect.top;
+
+            const length = Math.sqrt((targetX - sourceX) ** 2 + (targetY - sourceY) ** 2);
+            const angle = Math.atan2(targetY - sourceY, targetX - sourceX) * (180 / Math.PI);
+
+            line.style.width = length + 'px';
+            line.style.left = sourceX + 'px';
+            line.style.top = sourceY + 'px';
             line.style.transform = `rotate(${angle}deg)`;
         }
-        
+
         function removeConnections() {
             if (!selectedNode) {
                 alert('Sélectionnez un élément pour supprimer ses connexions');
                 return;
             }
-            
+
             connections = connections.filter(connection => {
                 if (connection.source === selectedNode || connection.target === selectedNode) {
                     connection.line.remove();
@@ -299,24 +411,77 @@
                 return true;
             });
         }
-        
-        function toggleStyleOptions() {
-            const options = document.getElementById('style-options');
-            options.style.display = options.style.display === 'none' ? 'block' : 'none';
+
+        function toggleEditMode() {
+            if (!selectedNode) {
+                alert('Sélectionnez un élément à modifier');
+                return;
+            }
+            if (editMode) {
+                finishEditing(selectedNode);
+            } else {
+                startEditing(selectedNode);
+            }
         }
-        
+
+        function startEditing(node) {
+            editMode = true;
+            const content = node.querySelector('.node-content');
+            const input = node.querySelector('input.edit-input');
+
+            content.style.display = 'none';
+            input.style.display = 'block';
+            input.focus();
+            input.select();
+        }
+
+        function finishEditing(node) {
+            if (!editMode) return;
+            const content = node.querySelector('.node-content');
+            const input = node.querySelector('input.edit-input');
+
+            const newValue = input.value.trim();
+            if (newValue.length > 0) {
+                content.textContent = newValue;
+            }
+            input.style.display = 'none';
+            content.style.display = 'block';
+
+            editMode = false;
+        }
+
+        function cancelEditing(node) {
+            if (!editMode) return;
+            const content = node.querySelector('.node-content');
+            const input = node.querySelector('input.edit-input');
+
+            input.value = content.textContent;
+            input.style.display = 'none';
+            content.style.display = 'block';
+
+            editMode = false;
+        }
+
+        function toggleStyleOptions() {
+            if (!selectedNode) {
+                alert('Sélectionnez un élément à personnaliser');
+                return;
+            }
+            const styleOptions = document.getElementById('style-options');
+            styleOptions.style.display = styleOptions.style.display === 'none' ? 'block' : 'none';
+        }
+
         function applyStyles() {
             if (!selectedNode) {
                 alert('Sélectionnez un élément à personnaliser');
                 return;
             }
-            
             const shape = document.getElementById('shape').value;
             const color = document.getElementById('color').value;
-            
+
             selectedNode.style.backgroundColor = color;
-            
-            switch(shape) {
+
+            switch (shape) {
                 case 'circle':
                     selectedNode.style.borderRadius = '50%';
                     break;
@@ -327,6 +492,20 @@
                     selectedNode.style.borderRadius = '5px';
             }
         }
+
+        // Pour désélectionner si clic hors noeud
+        document.getElementById('mind-map').addEventListener('click', () => {
+            if (selectedNode) {
+                selectedNode.classList.remove('selected');
+                if (editMode) {
+                    finishEditing(selectedNode);
+                }
+                selectedNode = null;
+            }
+        });
+
+        // Mettre à jour les connexions au redimensionnement de la fenêtre
+        window.addEventListener('resize', updateConnections);
     </script>
 </body>
 </html>
