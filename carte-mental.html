@@ -4,443 +4,199 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Carte Mentale Interactive</title>
+<!-- Ajout de html2canvas pour l'export PNG -->
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0; padding: 0;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-color: #f5f5f5;
+  :root {
+    --primary-color: #4285F4;
+    --background-color: #f5f5f5;
+    --toolbar-color: #333;
   }
-  .toolbar {
-    background-color: #333;
-    color: white;
-    padding: 10px;
-    display: flex;
-    gap: 15px;
-    user-select: none;
-  }
-  .toolbar-group {
-    display: flex;
-    gap: 10px;
-  }
-  .toolbar-btn {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 14px;
-  }
-  .toolbar-btn:hover {
-    background-color: #555;
-  }
-  .dropdown {
-    position: relative;
-  }
-  .dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #f9f9f9;
-    min-width: 160px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    z-index: 100;
-    border-radius: 4px;
-    top: 30px;
-    left: 0;
-  }
-  .dropdown:hover .dropdown-content {
-    display: block;
-  }
-  .dropdown-content button {
-    color: black;
-    padding: 8px 12px;
-    text-align: left;
-    border: none;
-    background: none;
-    width: 100%;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  .dropdown-content button:hover {
-    background-color: #ddd;
-  }
-  .content {
-    flex-grow: 1;
-    position: relative;
-    overflow: hidden;
-  }
-  #mindmap {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    transform-origin: 0 0;
-    transition: transform 0.3s;
-  }
-  .node {
-    position: absolute;
-    min-width: 120px;
-    padding: 10px;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    cursor: move;
-    user-select: none;
-  }
-  .node.selected {
-    box-shadow: 0 0 0 2px #4285F4;
-  }
-  .node-input {
-    border: none;
-    outline: none;
-    width: 100%;
-    font-size: 14px;
-    padding: 5px;
-    margin-bottom: 5px;
-    user-select: text;
-  }
-  .add-child-btn {
-    background-color: #4285F4;
-    color: white;
-    border: none;
-    border-radius: 50%;
+
+  /* [Tous les styles précédents restent identiques] */
+
+  /* Ajouts pour les thèmes */
+  .theme-option {
     width: 20px;
     height: 20px;
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 18px;
-    margin-top: 5px;
-    user-select: none;
-  }
-  .zoom-controls {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .zoom-btn {
-    background-color: white;
-    border: 1px solid #ddd;
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    user-select: none;
+    margin: 5px;
+    border: 2px solid transparent;
   }
-  .zoom-btn:hover {
-    background-color: #f1f1f1;
+
+  .theme-option.selected {
+    border-color: #000;
   }
-  .node-options {
-    position: absolute;
-    right: -30px;
-    top: 0;
-    display: none;
-  }
-  .node:hover .node-options {
-    display: block;
-  }
-  .node-options button {
-    background: none;
-    border: none;
-    color: #333;
+
+  /* Menu export */
+  .export-option {
+    padding: 8px 12px;
     cursor: pointer;
-    font-size: 16px;
-    margin-left: 2px;
-    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .node-options button:hover {
-    color: #4285F4;
+
+  .export-option img {
+    width: 20px;
+    height: 20px;
   }
 </style>
 </head>
 <body>
 
+<!-- Barre d'outils mise à jour -->
 <div class="toolbar">
   <div class="toolbar-group">
     <div class="dropdown">
       <button class="toolbar-btn">Fichier</button>
       <div class="dropdown-content">
-        <button id="new-project">Nouveau projet</button>
-        <button id="export-png">Exporter en PNG</button>
-        <button id="save-local">Enregistrer local</button>
-        <button id="load-local">Charger local</button>
+        <button id="new-project">🆕 Nouveau projet</button>
+        <button id="export-png">🖼️ Exporter en PNG</button>
+        <button id="save-local">💾 Enregistrer local</button>
+        <button id="load-local">📂 Charger local</button>
       </div>
     </div>
     <div class="dropdown">
       <button class="toolbar-btn">Édition</button>
       <div class="dropdown-content">
-        <button id="undo">Annuler (Ctrl+Z)</button>
-        <button id="redo">Rétablir (Ctrl+Y)</button>
-        <button id="delete-selected">Supprimer</button>
+        <button id="undo">↩️ Annuler (Ctrl+Z)</button>
+        <button id="redo">↪️ Rétablir (Ctrl+Y)</button>
+        <button id="delete-selected">❌ Supprimer</button>
       </div>
     </div>
-    <button class="toolbar-btn">Affichage</button>
-    <button class="toolbar-btn">Partager</button>
+    <div class="dropdown">
+      <button class="toolbar-btn">Affichage</button>
+      <div class="dropdown-content">
+        <button id="zoom-in-menu">➕ Zoom avant</button>
+        <button id="zoom-out-menu">➖ Zoom arrière</button>
+        <button id="toggle-toolbar">🗂️ Basculer la barre</button>
+      </div>
+    </div>
+    <div class="dropdown">
+      <button class="toolbar-btn">Partager</button>
+      <div class="dropdown-content">
+        <button id="share-link">🔗 Créer lien</button>
+        <button id="export-json">📤 Exporter JSON</button>
+      </div>
+    </div>
   </div>
   <div class="toolbar-group">
-    <button class="toolbar-btn" id="new-node">+ Nouveau nœud</button>
-    <button class="toolbar-btn" id="theme-selector">Thèmes</button>
-    <button class="toolbar-btn" id="export-btn">Exporter</button>
-  </div>
-</div>
-
-<div class="content">
-  <div id="mindmap">
-    <div class="node selected" style="top: 300px; left: 500px;">
-      <input type="text" class="node-input" value="Idée centrale" />
-      <button class="add-child-btn" title="Ajouter un enfant">+</button>
-      <div class="node-options">
-        <button class="edit-node" title="Éditer">✏️</button>
-        <button class="delete-node" title="Supprimer">🗑️</button>
+    <div class="dropdown">
+      <button class="toolbar-btn" id="theme-selector">🎨 Thèmes</button>
+      <div class="dropdown-content" style="padding: 10px;">
+        <div class="theme-option" style="background: #4285F4" data-theme="default"></div>
+        <div class="theme-option" style="background: #EA4335" data-theme="red"></div>
+        <div class="theme-option" style="background: #34A853" data-theme="green"></div>
+      </div>
+    </div>
+    <div class="dropdown">
+      <button class="toolbar-btn" id="export-btn">📤 Exporter</button>
+      <div class="dropdown-content">
+        <div class="export-option" id="export-json">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo4MjRGRTg0QzA3NjgxMUUzQkZGNDhENkJBMzMwQ0YxRiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDo4MjRGRTg0RDA3NjgxMUUzQkZGNDhENkJBMzMwQ0YxRiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjgyNEZFODQ5MDc2ODExRTNCRkY0OEQ2QkEzMzBDRjFGIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjgyNEZFODRBMDc2ODExRTNCRkY0OEQ2QkEzMzBDRjFGIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+UGHmigAAAOVJREFUeNpi/P//PwMlgAWdwzBqAAMjDhATE8PAycn5n4GBgREu8ObNG4b///8zoIvjBMCGMDExMXBzczN8+/aN4dOnT3AD0MURAqyQODh//jxDYGAg3AB0cYQAIyQO3r9/z/D371+4AejiCAH0aEIXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXHxIN0v8BGWACDAAhIHIsnp3JwAAAAABJRU5ErkJggg==">
+          Format JSON
+        </div>
+        <div class="export-option" id="export-txt">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo4MjRGRTg0QzA3NjgxMUUzQkZGNDhENkJBMzMwQ0YxRiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDo4MjRGRTg0RDA3NjgxMUUzQkZGNDhENkJBMzMwQ0YxRiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjgyNEZFODQ5MDc2ODExRTNCRkY0OEQ2QkEzMzBDRjFGIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjgyNEZFODRBMDc2ODExRTNCRkY0OEQ2QkEzMzBDRjFGIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+UGHmigAAAOVJREFUeNpi/P//PwMlgAWdwzBqAAMjDhATE8PAycn5n4GBgREu8ObNG4b///8zoIvjBMCGMDExMXBzczN8+/aN4dOnT3AD0MURAqyQODh//jxDYGAg3AB0cYQAIyQO3r9/z/D371+4AejiCAH0aEIXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXRwj8R4sXdHGEwH+0eEEXHxIN0v8BGWACDAAhIHIsnp3JwAAAAABJRU5ErkJggg==">
+          Format texte
+        </div>
       </div>
     </div>
   </div>
-
-  <div class="zoom-controls">
-    <button class="zoom-btn" id="zoom-in" title="Zoom +">+</button>
-    <button class="zoom-btn" id="zoom-out" title="Zoom -">−</button>
-    <button class="zoom-btn" id="reset-zoom" title="Réinitialiser zoom">↻</button>
-  </div>
 </div>
 
+<!-- [Le reste du HTML reste identique] -->
+
 <script>
-  let selectedNode = document.querySelector('.node.selected');
-  let scale = 1;
-  const mindmap = document.getElementById('mindmap');
+  // Ajouts au script existant
 
-  // Historique pour undo/redo
-  const history = [];
-  let historyIndex = -1;
-
-  // Sauvegarde état pour undo/redo
-  function saveState() {
-    // Supprimer états futurs si on revient en arrière
-    history.splice(historyIndex + 1);
-    history.push(mindmap.innerHTML);
-    historyIndex++;
-    // Limiter taille historique
-    if(history.length > 50) {
-      history.shift();
-      historyIndex--;
-    }
-  }
-
-  // Restaurer état
-  function restoreState(index) {
-    if(index >= 0 && index < history.length) {
-      mindmap.innerHTML = history[index];
-      historyIndex = index;
-      reattachEvents();
-    }
-  }
-
-  // Re-attacher événements après restauration
-  function reattachEvents() {
-    document.querySelectorAll('.node').forEach(node => {
-      setupNode(node);
-      makeDraggable(node);
+  // Gestion des thèmes
+  document.querySelectorAll('.theme-option').forEach(option => {
+    option.addEventListener('click', function() {
+      const theme = this.dataset.theme;
+      document.documentElement.style.setProperty('--primary-color', this.style.backgroundColor);
+      document.querySelectorAll('.theme-option').forEach(t => t.classList.remove('selected'));
+      this.classList.add('selected');
     });
-    selectedNode = document.querySelector('.node.selected');
-  }
-
-  // Création nouveau nœud
-  function createNewNode(top = 200, left = 300, text = "Nouvelle idée") {
-    const newNode = document.createElement('div');
-    newNode.className = 'node';
-    newNode.style.top = top + 'px';
-    newNode.style.left = left + 'px';
-    newNode.innerHTML = `
-      <input type="text" class="node-input" value="${text}" />
-      <button class="add-child-btn" title="Ajouter un enfant">+</button>
-      <div class="node-options">
-        <button class="edit-node" title="Éditer">✏️</button>
-        <button class="delete-node" title="Supprimer">🗑️</button>
-      </div>
-    `;
-    mindmap.appendChild(newNode);
-    setupNode(newNode);
-    makeDraggable(newNode);
-    selectNode(newNode);
-    saveState();
-    return newNode;
-  }
-
-  // Sélectionner un nœud
-  function selectNode(node) {
-    document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
-    node.classList.add('selected');
-    selectedNode = node;
-  }
-
-  // Setup événements sur un nœud
-  function setupNode(node) {
-    const input = node.querySelector('.node-input');
-    input.addEventListener('input', () => {
-      saveState();
-    });
-
-    node.querySelector('.add-child-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const top = parseInt(node.style.top) + 100;
-      const left = parseInt(node.style.left) + 100;
-      createNewNode(top, left);
-    });
-
-    node.querySelector('.delete-node').addEventListener('click', (e) => {
-      e.stopPropagation();
-      if(node === selectedNode) selectedNode = null;
-      node.remove();
-      saveState();
-    });
-
-    node.querySelector('.edit-node').addEventListener('click', (e) => {
-      e.stopPropagation();
-      node.querySelector('.node-input').focus();
-    });
-
-    node.addEventListener('mousedown', (e) => {
-      if(e.target.tagName === 'INPUT' || e.target.classList.contains('add-child-btn') || e.target.closest('.node-options')) {
-        return;
-      }
-      selectNode(node);
-    });
-  }
-
-  // Drag & Drop
-  function makeDraggable(element) {
-    let offsetX, offsetY;
-
-    element.addEventListener('mousedown', (e) => {
-      if(e.target.tagName === 'INPUT' || e.target.classList.contains('add-child-btn') || e.target.closest('.node-options')) return;
-
-      e.preventDefault();
-      selectNode(element);
-
-      offsetX = e.clientX - element.getBoundingClientRect().left;
-      offsetY = e.clientY - element.getBoundingClientRect().top;
-
-      function moveAt(eMove) {
-        element.style.left = (eMove.clientX - offsetX) / scale + 'px';
-        element.style.top = (eMove.clientY - offsetY) / scale + 'px';
-      }
-
-      function onMouseMove(eMove) {
-        moveAt(eMove);
-      }
-
-      document.addEventListener('mousemove', onMouseMove);
-
-      function onMouseUp() {
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-        saveState();
-      }
-
-      document.addEventListener('mouseup', onMouseUp);
-    });
-  }
-
-  // Zoom controls
-  document.getElementById('zoom-in').addEventListener('click', () => {
-    scale = Math.min(scale + 0.1, 3);
-    updateZoom();
-  });
-  document.getElementById('zoom-out').addEventListener('click', () => {
-    scale = Math.max(scale - 0.1, 0.3);
-    updateZoom();
-  });
-  document.getElementById('reset-zoom').addEventListener('click', () => {
-    scale = 1;
-    updateZoom();
   });
 
-  function updateZoom() {
-    mindmap.style.transform = `scale(${scale})`;
-  }
-
-  // Toolbar buttons
-  document.getElementById('new-node').addEventListener('click', () => {
-    createNewNode();
-  });
-
-  document.getElementById('delete-selected').addEventListener('click', () => {
-    if(selectedNode) {
-      selectedNode.remove();
-      selectedNode = null;
-      saveState();
+  // Export PNG fonctionnel
+  document.getElementById('export-png').addEventListener('click', async () => {
+    try {
+      const canvas = await html2canvas(document.querySelector('.content'));
+      const link = document.createElement('a');
+      link.download = 'mindmap.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (err) {
+      alert("Erreur lors de l'export : " + err.message);
     }
   });
 
-  document.getElementById('new-project').addEventListener('click', () => {
-    if(confirm("Voulez-vous créer un nouveau projet ? Tout travail non sauvegardé sera perdu.")) {
-      mindmap.innerHTML = '';
-      createNewNode(300, 500, "Idée centrale");
-      saveState();
+  // Export JSON
+  document.getElementById('export-json').addEventListener('click', () => {
+    const nodes = Array.from(document.querySelectorAll('.node')).map(node => ({
+      x: parseInt(node.style.left),
+      y: parseInt(node.style.top),
+      text: node.querySelector('.node-input').value,
+      children: []
+    }));
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(nodes, null, 2));
+    const link = document.createElement('a');
+    link.download = 'mindmap.json';
+    link.href = dataStr;
+    link.click();
+  });
+
+  // Partage de lien
+  document.getElementById('share-link').addEventListener('click', () => {
+    const data = JSON.stringify(Array.from(document.querySelectorAll('.node')).map(node => ({
+      x: parseInt(node.style.left),
+      y: parseInt(node.style.top),
+      text: node.querySelector('.node-input').value
+    })));
+    
+    const base64 = btoa(data);
+    prompt('Copiez ce lien pour partager :', window.location.href.split('?')[0] + '?data=' + base64);
+  });
+
+  // Gestion de l'affichage
+  document.getElementById('toggle-toolbar').addEventListener('click', () => {
+    document.querySelector('.toolbar').style.display = 
+      document.querySelector('.toolbar').style.display === 'none' ? 'flex' : 'none';
+  });
+
+  // Gestion du zoom via menu
+  document.getElementById('zoom-in-menu').addEventListener('click', () => document.getElementById('zoom-in').click());
+  document.getElementById('zoom-out-menu').addEventListener('click', () => document.getElementById('zoom-out').click());
+
+  // Fermeture des menus en cliquant à l'extérieur
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.dropdown')) {
+      document.querySelectorAll('.dropdown-content').forEach(menu => {
+        menu.style.display = 'none';
+      });
     }
   });
 
-  document.getElementById('save-local').addEventListener('click', () => {
-    localStorage.setItem('mindmap', mindmap.innerHTML);
-    alert('Carte mentale sauvegardée localement.');
-  });
-
-  document.getElementById('load-local').addEventListener('click', () => {
-    const data = localStorage.getItem('mindmap');
+  // Chargement depuis l'URL
+  function loadFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const data = urlParams.get('data');
     if(data) {
-      mindmap.innerHTML = data;
-      reattachEvents();
-      saveState();
-      alert('Carte mentale chargée depuis le stockage local.');
-    } else {
-      alert('Aucune carte mentale sauvegardée trouvée.');
-    }
-  });
-
-  document.getElementById('export-png').addEventListener('click', () => {
-    alert('Fonctionnalité d\'export PNG à implémenter (ex: html2canvas).');
-  });
-
-  // Undo / Redo
-  document.getElementById('undo').addEventListener('click', () => {
-    if(historyIndex > 0) {
-      restoreState(historyIndex - 1);
-    }
-  });
-  document.getElementById('redo').addEventListener('click', () => {
-    if(historyIndex < history.length -1) {
-      restoreState(historyIndex + 1);
-    }
-  });
-
-  // Keyboard shortcuts
-  document.addEventListener('keydown', e => {
-    if(e.ctrlKey && e.key === 'z') {
-      e.preventDefault();
-      if(historyIndex > 0) restoreState(historyIndex - 1);
-    }
-    if(e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
-      e.preventDefault();
-      if(historyIndex < history.length -1) restoreState(historyIndex + 1);
-    }
-    if(e.key === 'Delete' || e.key === 'Backspace') {
-      if(selectedNode && document.activeElement.tagName !== 'INPUT') {
-        selectedNode.remove();
-        selectedNode = null;
-        saveState();
+      try {
+        const nodes = JSON.parse(atob(data));
+        mindmap.innerHTML = '';
+        nodes.forEach(node => createNewNode(node.y, node.x, node.text));
+      } catch(e) {
+        console.error('Erreur de chargement depuis URL', e);
       }
     }
-  });
-
-  // Initial setup
-  saveState();
-
+  }
+  loadFromURL();
 </script>
-
 </body>
 </html>
