@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <!--Bien joué monsieur, vous avez gagné un bon point-->
     <meta charset="UTF-8">
     <title>Page en travaux</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,6 +22,17 @@
             font-size: 64px;
             color: #ff9800;
             margin-bottom: 20px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .icon:active {
+            transform: scale(1.1);
+        }
+        #message {
+            color: #388e3c;
+            font-size: 1.2em;
+            margin: 15px 0 10px 0;
+            display: none;
         }
         h1 {
             color: #333;
@@ -37,11 +47,17 @@
 </head>
 <body>
     <div class="container">
-        <div class="icon">🚧</div>
+        <div class="icon" id="workIcon" title="Cliquez-moi !">🚧</div>
+        <div id="message">Bien joué Monsieur, vous avez gagné un bon point !</div>
         <h1>Page en travaux</h1>
         <p>Erreur 503 – Service temporairement indisponible.</p>
         <p>Nous travaillons actuellement sur cette page.<br>
         Merci de revenir plus tard !</p>
     </div>
+    <script>
+        document.getElementById('workIcon').addEventListener('click', function() {
+            document.getElementById('message').style.display = 'block';
+        });
+    </script>
 </body>
 </html>
