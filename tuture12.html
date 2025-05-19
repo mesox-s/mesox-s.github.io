@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Page en travaux</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <title>Page en travaux avec confettis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
         body {
             background: #f8f8f8;
@@ -25,6 +25,7 @@
             color: #ff9800;
             margin-bottom: 20px;
             cursor: pointer;
+            user-select: none;
             transition: transform 0.1s;
         }
         .icon:active {
@@ -45,14 +46,13 @@
             color: #666;
             font-size: 1.2em;
         }
-        /* Confetti styles */
-        .confetti {
+        /* Canvas confetti styling */
+        #confetti-canvas {
             position: fixed;
-            top: 0;
-            left: 0;
-            pointer-events: none;
+            top: 0; left: 0;
             width: 100vw;
             height: 100vh;
+            pointer-events: none;
             z-index: 9999;
         }
     </style>
@@ -63,98 +63,35 @@
         <div id="message">Bien joué Monsieur, vous avez gagné un bon point !</div>
         <h1>Page en travaux</h1>
         <p>Erreur 503 – Service temporairement indisponible.</p>
-        <p>Nous travaillons actuellement sur cette page.<br>
-        Merci de revenir plus tard !</p>
+        <p>Nous travaillons actuellement sur cette page.<br>Merci de revenir plus tard !</p>
     </div>
-    <canvas class="confetti" id="confettiCanvas"></canvas>
+
+    <!-- Canvas pour confettis -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Import de la bibliothèque canvas-confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
-        // Confetti code
-        function launchConfetti() {
-            const canvas = document.getElementById('confettiCanvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        const icon = document.getElementById('workIcon');
+        const message = document.getElementById('message');
 
-            const confettiCount = 120;
-            const confettiColors = ['#ff9800', '#388e3c', '#e91e63', '#03a9f4', '#ffd600', '#8bc34a', '#ff5722'];
-            const confetti = [];
-
-            function randomRange(min, max) {
-                return Math.random() * (max - min) + min;
-            }
-
-            for (let i = 0; i < confettiCount; i++) {
-                confetti.push({
-                    x: randomRange(0, canvas.width),
-                    y: randomRange(-canvas.height, 0),
-                    r: randomRange(5, 10),
-                    d: randomRange(2, 7),
-                    color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
-                    tilt: randomRange(-10, 10),
-                    tiltAngleIncremental: randomRange(0.05, 0.12),
-                    tiltAngle: 0
-                });
-            }
-
-            let angle = 0;
-            let tiltAngle = 0;
-            let animationFrame;
-
-            function drawConfetti() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                for (let i = 0; i < confettiCount; i++) {
-                    const c = confetti[i];
-                    ctx.beginPath();
-                    ctx.lineWidth = c.d;
-                    ctx.strokeStyle = c.color;
-                    ctx.moveTo(c.x + c.tilt + (c.r / 3), c.y);
-                    ctx.lineTo(c.x + c.tilt, c.y + c.tilt + c.r);
-                    ctx.stroke();
-                }
-                updateConfetti();
-                animationFrame = requestAnimationFrame(drawConfetti);
-            }
-
-            function updateConfetti() {
-                angle += 0.01;
-                tiltAngle += 0.1;
-
-                for (let i = 0; i < confettiCount; i++) {
-                    const c = confetti[i];
-                    c.y += (Math.cos(angle + c.d) + 3 + c.r / 2) / 2;
-                    c.x += Math.sin(angle);
-                    c.tiltAngle += c.tiltAngleIncremental;
-                    c.tilt = Math.sin(c.tiltAngle - (i % 3)) * 15;
-
-                    // Reset confetti when out of the screen
-                    if (c.y > canvas.height) {
-                        c.x = randomRange(0, canvas.width);
-                        c.y = randomRange(-20, 0);
-                        c.tilt = randomRange(-10, 10);
-                    }
-                }
-            }
-
-            drawConfetti();
-
-            // Stop confetti after 2.5 seconds
-            setTimeout(() => {
-                cancelAnimationFrame(animationFrame);
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }, 2500);
-        }
-
-        // Show message and confetti on click
-        document.getElementById('workIcon').addEventListener('click', function() {
-            document.getElementById('message').style.display = 'block';
-            launchConfetti();
+        // Crée une instance confetti liée au canvas
+        const canvas = document.getElementById('confetti-canvas');
+        const myConfetti = confetti.create(canvas, {
+            resize: true,
+            useWorker: true
         });
 
-        // Adjust canvas size on window resize
-        window.addEventListener('resize', function() {
-            const canvas = document.getElementById('confettiCanvas');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        icon.addEventListener('click', () => {
+            // Affiche le message
+            message.style.display = 'block';
+
+            // Lance une explosion de confettis
+            myConfetti({
+                particleCount: 150,
+                spread: 160,
+                origin: { y: 0.6 }
+            });
         });
     </script>
 </body>
