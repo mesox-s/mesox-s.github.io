@@ -1142,7 +1142,7 @@ TOOLS_IMPL.pptx2pdf = function(){
         .sort((a,b)=>+a.match(/\d+/)[0]-+b.match(/\d+/)[0]);
       if (!slideNames.length) throw new Error("aucune diapositive trouvée");
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit:"pt", format:"landscape" });
+      const pdf = new jsPDF({ unit:"pt", format:"a4", orientation:"landscape" });
       const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
       let first = true;
       for (const name of slideNames){
