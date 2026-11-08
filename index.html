@@ -142,6 +142,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:54px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -155,7 +156,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:54px}
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 let _libsOk = true;
-if (!window.PDFLib || !window.pdfjsLib || !window.JSZip || !window.XLSX || !window.jspdf || !window.mammoth || !window.html2canvas){
+if (!window.PDFLib || !window.pdfjsLib || !window.JSZip || !window.XLSX || !window.jspdf || !window.mammoth || !window.html2canvas || !window.docx){
   _libsOk = false;
 }
 const PDFDocument = window.PDFLib ? PDFLib.PDFDocument : null;
@@ -1084,7 +1085,7 @@ TOOLS_IMPL.watermark = function(){
 /* ================= CONVERSIONS VERS PDF ================= */
 
 TOOLS_IMPL.docx2pdf = function(){
-  const { drop, panel } = toolPage("docx2pdf","Convertir un document Word (.docx) en PDF — rendu via le navigateur.",
+  const { drop, panel } = toolPage("docx2pdf","Convertir un document Word (.docx) en PDF en conservant la mise en page d'origine.",
     { accept:".docx", multiple:false });
   const run=document.createElement("button"); run.className="run"; run.textContent="Convertir en PDF 📝";
   const status=document.createElement("div"); status.className="status";
@@ -1092,31 +1093,30 @@ TOOLS_IMPL.docx2pdf = function(){
   panel.append(run, status); app.appendChild(out);
   run.onclick = async ()=>{
     const f = drop.files[0]; if(!f){ status.textContent="Ajoutez d'abord un .docx."; return; }
-    run.disabled=true; status.innerHTML=`<span class="spin"></span>Conversion…`;
+    run.disabled=true; status.innerHTML=`<span class="spin"></span>Rendu du document…`;
     try{
-      if (!window.mammoth) throw new Error("bibliothèque non chargée (CDN bloqué) — téléchargez le fichier ou déployez-le sur GitHub Pages");
-      const { value:html } = await mammoth.convertToHtml({ arrayBuffer: await f.arrayBuffer() });
+      if (!window.docx) throw new Error("bibliothèque de rendu non chargée (CDN bloqué) — téléchargez le fichier ou déployez-le sur GitHub Pages");
       const holder=document.createElement("div");
-      holder.style.cssText="position:fixed;left:-10000px;top:0;width:794px;background:#fff;color:#111;padding:48px;font-family:Georgia,serif";
-      holder.innerHTML = html || "<p>(document vide)</p>";
+      holder.style.cssText="position:fixed;left:-10000px;top:0;background:#fff;";
       document.body.appendChild(holder);
-      const canvas = await html2canvas(holder, { scale:2, backgroundColor:"#ffffff" });
-      holder.remove();
+      await window.docx.renderAsync(await f.arrayBuffer(), holder, null, {
+        className:"docx", inWrapper:true, ignoreWidth:false, ignoreHeight:false,
+        ignoreFonts:false, breakPages:true, experimental:true, useBase64URL:true,
+      });
+      let pages = holder.querySelectorAll("section.docx");
+      if (!pages.length) pages = [holder];
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit:"pt", format:"a4" });
       const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-      const pxPerPt = 2;
-      const sliceH = Math.floor(ph*pxPerPt);
-      let y = 0, first = true;
-      while (y < canvas.height){
-        const tmp=document.createElement("canvas");
-        tmp.width = canvas.width; tmp.height = Math.min(sliceH, canvas.height-y);
-        tmp.getContext("2d").drawImage(canvas, 0, y, canvas.width, tmp.height, 0, 0, canvas.width, tmp.height);
-        const img = tmp.toDataURL("image/jpeg", 0.92);
+      let first = true;
+      for (const pg of pages){
+        const canvas = await html2canvas(pg, { scale:2, backgroundColor:"#ffffff" });
         if (!first) pdf.addPage();
-        pdf.addImage(img, "JPEG", 0, 0, pw, tmp.height/pxPerPt);
-        y += sliceH; first = false;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pw,
+          Math.min(canvas.height/canvas.width*pw, ph));
+        first = false;
       }
+      holder.remove();
       const blob = pdf.output("blob");
       status.textContent="🎉 Terminé !";
       showResults(out, [{ name:f.name.replace(/\.docx$/i,"")+".pdf", blob }]);
@@ -1126,48 +1126,158 @@ TOOLS_IMPL.docx2pdf = function(){
 };
 
 TOOLS_IMPL.pptx2pdf = function(){
-  const { drop, panel } = toolPage("pptx2pdf","Convertir une présentation PowerPoint (.pptx) en PDF (rendu texte simplifié).",
+  const { drop, panel } = toolPage("pptx2pdf","Convertir une présentation PowerPoint (.pptx) en PDF en respectant positions, couleurs, images et textes.",
     { accept:".pptx", multiple:false });
   const run=document.createElement("button"); run.className="run"; run.textContent="Convertir en PDF 📊";
   const status=document.createElement("div"); status.className="status";
   const out=document.createElement("div");
   panel.append(run, status); app.appendChild(out);
+  const EMU = 9525; // EMU par pixel CSS (96 dpi)
   run.onclick = async ()=>{
     const f = drop.files[0]; if(!f){ status.textContent="Ajoutez d'abord un .pptx."; return; }
-    run.disabled=true; status.innerHTML=`<span class="spin"></span>Conversion…`;
+    run.disabled=true; status.innerHTML=`<span class="spin"></span>Rendu des diapositives…`;
     try{
       const zip = await JSZip.loadAsync(await f.arrayBuffer());
       const slideNames = Object.keys(zip.files)
         .filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n))
         .sort((a,b)=>+a.match(/\d+/)[0]-+b.match(/\d+/)[0]);
       if (!slideNames.length) throw new Error("aucune diapositive trouvée");
+      let cxSlide = 9144000, cySlide = 6858000;
+      if (zip.file("ppt/presentation.xml")){
+        const presXml = await zip.file("ppt/presentation.xml").async("string");
+        const szM = presXml.match(/<p:sldSz[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+        if (szM){ cxSlide = +szM[1]; cySlide = +szM[2]; }
+      }
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit:"pt", format:"a4", orientation:"landscape" });
-      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+      const pdf = new jsPDF({ unit:"pt", format:[cxSlide/12700, cySlide/12700],
+        orientation: cxSlide>=cySlide ? "landscape" : "portrait" });
+      const dp = new DOMParser();
+      const SCHEME = { bg1:"#ffffff", lt1:"#ffffff", bg2:"#f2f2f2", lt2:"#eeece1",
+        tx1:"#000000", dk1:"#000000", tx2:"#44546a", dk2:"#44546a", accent1:"#4472c4" };
       let first = true;
+      let done = 0;
       for (const name of slideNames){
-        const xml = await zip.file(name).async("string");
-        const paras = [...xml.matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)].map(m=>
-          [...m[1].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(t=>t[1]).join("")).filter(Boolean);
-        if (!first) pdf.addPage();
-        first = false;
+        const doc = dp.parseFromString(await zip.file(name).async("string"), "application/xml");
         const num = name.match(/\d+/)[0];
-        pdf.setFillColor(15,17,26); pdf.rect(0,0,pw,ph,"F");
-        pdf.setTextColor(140,150,175); pdf.setFontSize(11);
-        pdf.text(`Diapositive ${num}`, 40, 42);
-        pdf.setDrawColor(91,140,255); pdf.setLineWidth(2); pdf.line(40, 54, 120, 54);
-        let y = 100; let isTitle = true;
-        for (const p of paras){
-          pdf.setTextColor(isTitle ? 231 : 180, isTitle ? 234 : 186, isTitle ? 240 : 195);
-          pdf.setFontSize(isTitle ? 26 : 14);
-          const lines = pdf.splitTextToSize(p, pw-80);
-          for (const ln of lines){
-            if (y > ph-50){ break; }
-            pdf.text(ln, 40, y); y += (isTitle?34:22);
-          }
-          if (isTitle) y += 10;
-          isTitle = false;
+        const rels = {};
+        const relsName = `ppt/slides/_rels/slide${num}.xml.rels`;
+        if (zip.file(relsName)){
+          const rdoc = dp.parseFromString(await zip.file(relsName).async("string"), "application/xml");
+          rdoc.getElementsByTagName("Relationship").forEach(r=>{
+            rels[r.getAttribute("Id")] = r.getAttribute("Target").replace(/^\/|^\.\.\//,"").replace(/^ppt\//,"");
+          });
         }
+        const stage = document.createElement("div");
+        stage.style.cssText = `position:fixed;left:-10000px;top:0;width:${cxSlide/EMU}px;height:${cySlide/EMU}px;background:#ffffff;overflow:hidden;box-sizing:border-box;`;
+        const bgEl = doc.getElementsByTagName("p:bg")[0];
+        if (bgEl){
+          const clr = bgEl.getElementsByTagName("a:srgbClr")[0];
+          const scheme = bgEl.getElementsByTagName("a:schemeClr")[0];
+          if (clr) stage.style.background = "#"+clr.getAttribute("val");
+          else if (scheme) stage.style.background = SCHEME[scheme.getAttribute("val")] || "#ffffff";
+        }
+        document.body.appendChild(stage);
+        const shapes = [...doc.getElementsByTagName("*")]
+          .filter(el=>el.tagName==="p:sp"||el.tagName==="p:pic");
+        for (const el of shapes){
+          const xfrm = el.getElementsByTagName("a:xfrm")[0];
+          const off = xfrm ? xfrm.getElementsByTagName("a:off")[0] : null;
+          const ext = xfrm ? xfrm.getElementsByTagName("a:ext")[0] : null;
+          const x = off ? +off.getAttribute("x") : 0;
+          const y = off ? +off.getAttribute("y") : 0;
+          const cx = ext ? +ext.getAttribute("cx") : cxSlide;
+          const cy = ext ? +ext.getAttribute("cy") : cySlide;
+          const d = document.createElement("div");
+          d.style.cssText = `position:absolute;left:${x/EMU}px;top:${y/EMU}px;width:${cx/EMU}px;height:${cy/EMU}px;box-sizing:border-box;overflow:hidden;`;
+          if (el.tagName==="p:pic"){
+            const blip = el.getElementsByTagName("a:blip")[0];
+            const rid = blip ? blip.getAttribute("r:embed") : null;
+            const target = rid ? rels[rid] : null;
+            if (target && zip.file("ppt/"+target)){
+              const b64 = await zip.file("ppt/"+target).async("base64");
+              const ext = (target.match(/\.(\w+)$/)||[])[1].toLowerCase();
+              const mime = ({ png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg",
+                gif:"image/gif", bmp:"image/bmp", svg:"image/svg+xml", tiff:"image/png" })[ext] || "image/png";
+              const img = document.createElement("img");
+              img.src = `data:${mime};base64,${b64}`;
+              img.style.cssText = "width:100%;height:100%;object-fit:fill;";
+              d.appendChild(img);
+            }
+            stage.appendChild(d); continue;
+          }
+          const spPr = el.getElementsByTagName("p:spPr")[0];
+          if (spPr){
+            const fill = spPr.getElementsByTagName("a:solidFill")[0];
+            if (fill){
+              const c = fill.getElementsByTagName("a:srgbClr")[0];
+              const s = fill.getElementsByTagName("a:schemeClr")[0];
+              if (c) d.style.background = "#"+c.getAttribute("val");
+              else if (s) d.style.background = SCHEME[s.getAttribute("val")] || "#e7e6e6";
+            } else if (!spPr.getElementsByTagName("a:noFill").length){
+              d.style.background = "#ffffff";
+            }
+            const geom = spPr.getElementsByTagName("a:prstGeom")[0];
+            if (geom && /round/i.test(geom.getAttribute("prst")||"")) d.style.borderRadius="10px";
+            const ln = spPr.getElementsByTagName("a:ln")[0];
+            if (ln && ln.getElementsByTagName("a:solidFill").length){
+              const c = ln.getElementsByTagName("a:srgbClr")[0];
+              if (c) d.style.border = `1.5px solid #${c.getAttribute("val")}`;
+            }
+          }
+          const txBody = el.getElementsByTagName("p:txBody")[0];
+          if (txBody){
+            const bodyPr = txBody.getElementsByTagName("a:bodyPr")[0];
+            const anchor = bodyPr ? (bodyPr.getAttribute("anchor")||"") : "";
+            d.style.display="flex"; d.style.flexDirection="column";
+            if (anchor==="ctr") d.style.justifyContent="center";
+            else if (anchor==="b") d.style.justifyContent="flex-end";
+            if (bodyPr && bodyPr.getAttribute("lIns")!==null){
+              const pad = v => (+v/EMU)+"px";
+              d.style.padding = `${pad(bodyPr.getAttribute("tIns")||45720)} ${pad(bodyPr.getAttribute("rIns")||91440)} ${pad(bodyPr.getAttribute("bIns")||45720)} ${pad(bodyPr.getAttribute("lIns")||91440)}`;
+            }
+            for (const pEl of txBody.getElementsByTagName("a:p")){
+              const pPr = pEl.getElementsByTagName("a:pPr")[0];
+              const algn = pPr ? pPr.getAttribute("algn") : null;
+              const pDiv = document.createElement("div");
+              pDiv.style.width="100%";
+              if (algn==="ctr") pDiv.style.textAlign="center";
+              else if (algn==="r") pDiv.style.textAlign="right";
+              else if (algn==="just") pDiv.style.textAlign="justify";
+              let hasRun = false;
+              for (const rEl of pEl.getElementsByTagName("a:r")){
+                const t = [...rEl.getElementsByTagName("a:t")].map(n=>n.textContent).join("");
+                if (!t) continue;
+                hasRun = true;
+                const rPr = rEl.getElementsByTagName("a:rPr")[0];
+                let sz = rPr ? +rPr.getAttribute("sz") : 0;
+                sz = sz ? (sz/100)*(4/3) : 18;
+                const bold = rPr && rPr.getAttribute("b")==="1";
+                let color = "#000000";
+                const fill = rPr ? rPr.getElementsByTagName("a:solidFill")[0] : null;
+                if (fill){
+                  const c = fill.getElementsByTagName("a:srgbClr")[0];
+                  const s = fill.getElementsByTagName("a:schemeClr")[0];
+                  if (c) color = "#"+c.getAttribute("val");
+                  else if (s) color = SCHEME[s.getAttribute("val")] || "#000000";
+                }
+                const span = document.createElement("span");
+                span.style.cssText = `font-size:${sz}px;font-weight:${bold?"700":"400"};color:${color};white-space:pre-wrap;word-break:break-word;font-family:'Calibri','Segoe UI',Arial,sans-serif;`;
+                span.textContent = t;
+                pDiv.appendChild(span);
+              }
+              if (hasRun) d.appendChild(pDiv);
+            }
+          }
+          stage.appendChild(d);
+        }
+        const canvas = await html2canvas(stage, { scale:2, backgroundColor:null });
+        if (!first) pdf.addPage([cxSlide/12700, cySlide/12700],
+          cxSlide>=cySlide ? "landscape" : "portrait");
+        first = false;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, cxSlide/12700, cySlide/12700);
+        stage.remove();
+        done++;
+        status.innerHTML = `<span class="spin"></span>Rendu des diapositives… ${done}/${slideNames.length}`;
       }
       const blob = pdf.output("blob");
       status.textContent="🎉 Terminé !";
